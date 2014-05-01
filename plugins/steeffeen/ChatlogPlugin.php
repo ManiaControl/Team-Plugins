@@ -1,6 +1,6 @@
 <?php
 
-namespace MCTeam;
+namespace steeffeen;
 
 use ManiaControl\Callbacks\CallbackListener;
 use ManiaControl\Callbacks\CallbackManager;
@@ -20,7 +20,7 @@ class ChatlogPlugin implements CallbackListener, Plugin {
 	 * Constants
 	 */
 	const ID                        = 26;
-	const VERSION                   = 0.1;
+	const VERSION                   = 0.2;
 	const DATE                      = 'd-m-y h:i:sa T';
 	const SETTING_FOLDERNAME        = 'Log-Folder Name';
 	const SETTING_FILENAME          = 'Log-File Name';
