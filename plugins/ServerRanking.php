@@ -2,12 +2,17 @@
 
 namespace MCTeam;
 
+use FML\Controls\Frame;
+use FML\Controls\Quads\Quad_BgsPlayerCard;
+use FML\ManiaLink;
+use FML\Script\Features\Paging;
+
 use ManiaControl\Callbacks\CallbackListener;
 use ManiaControl\Callbacks\Callbacks;
 use ManiaControl\Commands\CommandListener;
 use ManiaControl\ManiaControl;
 use ManiaControl\Maps\Map;
-use ManiaControl\Maps\MapManager;
+use ManiaControl\Manialinks\ManialinkManager;
 use ManiaControl\Players\Player;
 use ManiaControl\Players\PlayerManager;
 use ManiaControl\Plugins\Plugin;
@@ -62,6 +67,7 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 	 * Load the plugin
 	 *
 	 * @param \ManiaControl\ManiaControl $maniaControl
+	 * @throws Exception
 	 * @return bool
 	 */
 	public function load(ManiaControl $maniaControl) {
@@ -100,6 +106,7 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 		//Register CommandListener
 		$this->maniaControl->commandManager->registerCommandListener('rank', $this, 'command_showRank', false, 'Shows your current serverrank.');
 		$this->maniaControl->commandManager->registerCommandListener('nextrank', $this, 'command_nextRank', false, 'Shows the person in front of you in the serverranking.');
+		$this->maniaControl->commandManager->registerCommandListener(array('topranks', 'top100'), $this, 'command_topRanks', false, 'Shows an overview of the best-ranked 100 players.');
 
 		$this->resetRanks(); //TODO only update records count
 	}
@@ -448,6 +455,101 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Handles /topranks|top100 command
+	 *
+	 * @param array  $chatCallback
+	 * @param Player $player
+	 */
+	public function command_topRanks(array $chatCallback, Player $player) {
+		$this->showTopRanksList($player);
+	}
+
+	/**
+	 * Provides a ManiaLink window with the top ranks to the player
+	 *
+	 * @param Player $player
+	 */
+	private function showTopRanksList(Player $player) {
+		$query = "SELECT * FROM `".self::TABLE_RANK."` ORDER BY `Rank` ASC LIMIT 0, 100";
+		$mysqli = $this->maniaControl->database->mysqli;
+		$result = $mysqli->query($query);
+		if ($mysqli->error) {
+			trigger_error($mysqli->error);
+			return null;
+		}
+
+		$width  = $this->maniaControl->manialinkManager->styleManager->getListWidgetsWidth();
+		$height = $this->maniaControl->manialinkManager->styleManager->getListWidgetsHeight();
+
+		// create manialink
+		$maniaLink = new ManiaLink(ManialinkManager::MAIN_MLID);
+		$script = $maniaLink->getScript();
+		$paging = new Paging();
+		$script->addFeature($paging);
+
+		// Main frame
+		$frame = $this->maniaControl->manialinkManager->styleManager->getDefaultListFrame($script, $paging);
+		$maniaLink->add($frame);
+
+		// Start offsets
+		$x = -$width / 2;
+		$y = $height / 2;
+
+		//Predefine description Label
+		$descriptionLabel = $this->maniaControl->manialinkManager->styleManager->getDefaultDescriptionLabel();
+		$frame->add($descriptionLabel);
+
+		// Headline
+		$headFrame = new Frame();
+		$frame->add($headFrame);
+		$headFrame->setY($y - 5);
+		$array = array('$oRank' => $x + 5, '$oNickname' => $x + 18, '$oAverage' => $x + 70);
+		$this->maniaControl->manialinkManager->labelLine($headFrame, $array);
+
+		$i          = 1;
+		$y          = $y - 10;
+		$pageFrames = array();
+		while($rankedPlayer = $result->fetch_object()) {
+			if (!isset($pageFrame)) {
+				$pageFrame = new Frame();
+				$frame->add($pageFrame);
+				if (!empty($pageFrames)) {
+					$pageFrame->setVisible(false);
+				}
+				array_push($pageFrames, $pageFrame);
+				$y = $height / 2 - 10;
+				$paging->addPage($pageFrame);
+			}
+
+
+			$playerFrame = new Frame();
+			$pageFrame->add($playerFrame);
+			$playerFrame->setY($y);
+
+			if ($i % 2 != 0) {
+				$lineQuad = new Quad_BgsPlayerCard();
+				$playerFrame->add($lineQuad);
+				$lineQuad->setSize($width, 4);
+				$lineQuad->setSubStyle($lineQuad::SUBSTYLE_BgPlayerCardBig);
+				$lineQuad->setZ(0.001);
+			}
+
+			$playerObject = $this->maniaControl->playerManager->getPlayerByIndex($rankedPlayer->PlayerIndex);
+			$array = array($rankedPlayer->Rank => $x + 5, $playerObject->nickname => $x + 18, (string)round($rankedPlayer->Avg, 2) => $x + 70);
+			$this->maniaControl->manialinkManager->labelLine($playerFrame, $array);
+
+			$y -= 4;
+			$i++;
+			if (($i - 1) % 15 == 0) {
+				unset($pageFrame);
+			}
+		}
+
+		// Render and display xml
+		$this->maniaControl->manialinkManager->displayWidget($maniaLink, $player, 'TopRanks');
 	}
 }
 
