@@ -116,7 +116,10 @@ class Dedimania implements CallbackListener, CommandListener, TimerListener, Plu
 		// Open session
 		$serverInfo    = $this->maniaControl->server->getInfo();
 		$serverVersion = $this->maniaControl->client->getVersion();
-		$packMask      = substr($this->maniaControl->server->titleId, 2);
+		$packMask      = $this->maniaControl->server->titleId;
+		if($packMask != 'Trackmania_2@nadeolabs') {
+			$packMask  = substr($this->maniaControl->server->titleId, 2);
+		}
 
 		$dedimaniaCode = $this->maniaControl->settingManager->getSetting($this, self::SETTING_DEDIMANIA_CODE . $serverInfo->login . '$l');
 		if ($dedimaniaCode == '') {
