@@ -2,14 +2,14 @@
 
 namespace steeffeen;
 
-use ManiaControl\ManiaControl;
 use ManiaControl\Admin\AuthenticationManager;
 use ManiaControl\Callbacks\CallbackListener;
-use ManiaControl\Callbacks\CallbackManager;
+use ManiaControl\Callbacks\Models\RecordCallback;
 use ManiaControl\Commands\CommandListener;
+use ManiaControl\ManiaControl;
 use ManiaControl\Players\Player;
 use ManiaControl\Plugins\Plugin;
-use Maniaplanet\DedicatedServer\Xmlrpc\Exception;
+use Maniaplanet\DedicatedServer\Xmlrpc\GameModeException;
 
 /**
  * ManiaControl Obstacle Plugin
@@ -17,66 +17,31 @@ use Maniaplanet\DedicatedServer\Xmlrpc\Exception;
  * @author steeffeen
  */
 class ObstaclePlugin implements CallbackListener, CommandListener, Plugin {
-	/**
+	/*
 	 * Constants
 	 */
-	const ID = 24;
-	const VERSION = 0.2;
-	const CB_JUMPTO = 'Obstacle.JumpTo';
-	const SCB_ONFINISH = 'OnFinish';
-	const SCB_ONCHECKPOINT = 'OnCheckpoint';
-	const SETTING_JUMPTOAUTHLEVEL = 'Authentication level for JumpTo commands';
-	
+	const ID                       = 24;
+	const VERSION                  = 0.2;
+	const NAME                     = 'Obstacle Plugin';
+	const AUTHOR                   = 'steeffeen';
+	const CB_JUMPTO                = 'Obstacle.JumpTo';
+	const SCB_ONFINISH             = 'OnFinish';
+	const SCB_ONCHECKPOINT         = 'OnCheckpoint';
+	const SETTING_JUMPTO_AUTHLEVEL = 'Authentication level for JumpTo commands';
+
 	/**
 	 * Private Properties
 	 */
-	/**
-	 * @var maniaControl $maniaControl
-	 */
+	/** @var ManiaControl $maniaControl */
 	private $maniaControl = null;
 
 	/**
-	 * Prepares the Plugin
-	 *
-	 * @param ManiaControl $maniaControl
-	 * @return mixed
+	 * @see \ManiaControl\Plugins\Plugin::prepare()
 	 */
 	public static function prepare(ManiaControl $maniaControl) {
-		// do nothing
 	}
 
 	/**
-	 *
-	 * @see \ManiaControl\Plugins\Plugin::load()
-	 */
-	public function load(ManiaControl $maniaControl) {
-		$this->maniaControl = $maniaControl;
-		
-		// Init settings
-		$this->maniaControl->settingManager->initSetting($this, self::SETTING_JUMPTOAUTHLEVEL, AuthenticationManager::AUTH_LEVEL_MODERATOR);
-		
-		// Register for commands
-		$this->maniaControl->commandManager->registerCommandListener('jumpto', $this, 'command_JumpTo');
-		
-		// Register for callbacks
-		$this->maniaControl->callbackManager->registerScriptCallbackListener(self::SCB_ONFINISH, $this, 'callback_OnFinish');
-		$this->maniaControl->callbackManager->registerScriptCallbackListener(self::SCB_ONCHECKPOINT, $this, 'callback_OnCheckpoint');
-		
-		return true;
-	}
-
-	/**
-	 *
-	 * @see \ManiaControl\Plugins\Plugin::unload()
-	 */
-	public function unload() {
-		$this->maniaControl->commandManager->unregisterCommandListener($this);
-		$this->maniaControl->callbackManager->unregisterScriptCallbackListener($this);
-		unset($this->maniaControl);
-	}
-
-	/**
-	 *
 	 * @see \ManiaControl\Plugins\Plugin::getId()
 	 */
 	public static function getId() {
@@ -84,15 +49,13 @@ class ObstaclePlugin implements CallbackListener, CommandListener, Plugin {
 	}
 
 	/**
-	 *
 	 * @see \ManiaControl\Plugins\Plugin::getName()
 	 */
 	public static function getName() {
-		return 'Obstacle Plugin';
+		return self::NAME;
 	}
 
 	/**
-	 *
 	 * @see \ManiaControl\Plugins\Plugin::getVersion()
 	 */
 	public static function getVersion() {
@@ -100,46 +63,69 @@ class ObstaclePlugin implements CallbackListener, CommandListener, Plugin {
 	}
 
 	/**
-	 *
 	 * @see \ManiaControl\Plugins\Plugin::getAuthor()
 	 */
 	public static function getAuthor() {
-		return 'steeffeen';
+		return self::AUTHOR;
 	}
 
 	/**
-	 *
 	 * @see \ManiaControl\Plugins\Plugin::getDescription()
 	 */
 	public static function getDescription() {
-		return "Plugin offering CP Jumping and Local Records Support for the ShootManie Gamemode 'Obstacle'.";
+		return "Plugin offering CP Jumping and Local Records Support for the ShootMania GameMode 'Obstacle'.";
+	}
+
+	/**
+	 * @see \ManiaControl\Plugins\Plugin::load()
+	 */
+	public function load(ManiaControl $maniaControl) {
+		$this->maniaControl = $maniaControl;
+
+		// Init settings
+		$this->maniaControl->settingManager->initSetting($this, self::SETTING_JUMPTO_AUTHLEVEL, AuthenticationManager::AUTH_LEVEL_MODERATOR);
+
+		// Register for commands
+		$this->maniaControl->commandManager->registerCommandListener('jumpto', $this, 'command_JumpTo', true);
+
+		// Register for callbacks
+		$this->maniaControl->callbackManager->registerScriptCallbackListener(self::SCB_ONFINISH, $this, 'callback_OnFinish');
+		$this->maniaControl->callbackManager->registerScriptCallbackListener(self::SCB_ONCHECKPOINT, $this, 'callback_OnCheckpoint');
+
+		return true;
+	}
+
+	/**
+	 * @see \ManiaControl\Plugins\Plugin::unload()
+	 */
+	public function unload() {
 	}
 
 	/**
 	 * Handle JumpTo command
 	 *
-	 * @param array $chatCallback
+	 * @param array  $chatCallback
 	 * @param Player $player
 	 * @return bool
 	 */
 	public function command_JumpTo(array $chatCallback, Player $player) {
-		$authLevel = $this->maniaControl->settingManager->getSetting($this, self::SETTING_JUMPTOAUTHLEVEL);
+		$authLevel = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_JUMPTO_AUTHLEVEL);
 		if (!$this->maniaControl->authenticationManager->checkRight($player, $authLevel)) {
 			$this->maniaControl->authenticationManager->sendNotAllowed($player);
 			return;
 		}
 		// Send jump callback
 		$params = explode(' ', $chatCallback[1][2], 2);
+		if (count($params) < 2) {
+			$message = "Usage: '//jumpto login' or '//jumpto checkpointnumber'";
+			$this->maniaControl->chat->sendUsageInfo($message, $player);
+			return;
+		}
+
 		$param = $player->login . ";" . $params[1] . ";";
 		try {
 			$this->maniaControl->client->triggerModeScriptEvent(self::CB_JUMPTO, $param);
-		}
-		catch (Exception $e) {
-			if ($e->getMessage() == 'Not in script mode.') {
-				trigger_error("Couldn't send jump callback for '{$player->login}'. " . $e->getMessage());
-				return;
-			}
-			throw $e;
+		} catch (GameModeException $e) {
 		}
 	}
 
@@ -149,16 +135,20 @@ class ObstaclePlugin implements CallbackListener, CommandListener, Plugin {
 	 * @param array $callback
 	 */
 	public function callback_OnFinish(array $callback) {
-		$data = json_decode($callback[1]);
+		$data   = json_decode($callback[1]);
 		$player = $this->maniaControl->playerManager->getPlayer($data->Player->Login);
 		if (!$player) {
 			return;
 		}
-		$time = $data->Run->Time;
-		// Trigger trackmania player finish callback
-		$finishCallback = array($player->pid, $player->login, $time);
-		$this->maniaControl->callbackManager->triggerCallback(CallbackManager::CB_TM_PLAYERFINISH, 
-				array(CallbackManager::CB_TM_PLAYERFINISH, $finishCallback));
+
+		// Trigger finish callback
+		$finishCallback              = new RecordCallback();
+		$finishCallback->rawCallback = $callback;
+		$finishCallback->name        = $finishCallback::FINISH;
+		$finishCallback->setPlayer($player);
+		$finishCallback->time = $data->Run->Time;
+
+		$this->maniaControl->callbackManager->triggerCallback($finishCallback);
 	}
 
 	/**
@@ -167,15 +157,19 @@ class ObstaclePlugin implements CallbackListener, CommandListener, Plugin {
 	 * @param array $callback
 	 */
 	public function callback_OnCheckpoint(array $callback) {
-		$data = json_decode($callback[1]);
+		$data   = json_decode($callback[1]);
 		$player = $this->maniaControl->playerManager->getPlayer($data->Player->Login);
-		$time = $data->Run->Time;
-		if (!$player || $time <= 0) {
+		if (!$player) {
 			return;
 		}
-		// Trigger Trackmania player checkpoint callback
-		$checkpointCallback = array($player->pid, $player->login, $time, 0, 0);
-		$this->maniaControl->callbackManager->triggerCallback(CallbackManager::CB_TM_PLAYERCHECKPOINT, 
-				array(CallbackManager::CB_TM_PLAYERCHECKPOINT, $checkpointCallback));
+
+		// Trigger checkpoint callback
+		$checkpointCallback              = new RecordCallback();
+		$checkpointCallback->rawCallback = $callback;
+		$checkpointCallback->name        = $checkpointCallback::CHECKPOINT;
+		$checkpointCallback->setPlayer($player);
+		$checkpointCallback->time = $data->Run->Time;
+
+		$this->maniaControl->callbackManager->triggerCallback($checkpointCallback);
 	}
 }
