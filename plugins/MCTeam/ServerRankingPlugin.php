@@ -6,13 +6,12 @@ use FML\Controls\Frame;
 use FML\Controls\Quads\Quad_BgsPlayerCard;
 use FML\ManiaLink;
 use FML\Script\Features\Paging;
-
 use ManiaControl\Callbacks\CallbackListener;
 use ManiaControl\Callbacks\Callbacks;
 use ManiaControl\Commands\CommandListener;
 use ManiaControl\ManiaControl;
-use ManiaControl\Maps\Map;
 use ManiaControl\Manialinks\ManialinkManager;
+use ManiaControl\Maps\Map;
 use ManiaControl\Players\Player;
 use ManiaControl\Players\PlayerManager;
 use ManiaControl\Plugins\Plugin;
@@ -23,9 +22,9 @@ use Maniaplanet\DedicatedServer\Structures\AbstractStructure;
 /**
  * ManiaControl ServerRanking Plugin
  *
- * @author kremsy
- * @copyright ManiaControl Copyright © 2014 ManiaControl Team
- * @license http://www.gnu.org/licenses/ GNU General Public License, Version 3
+ * @author    ManiaControl Team <mail@maniacontrol.com>
+ * @copyright 2014 ManiaControl Team
+ * @license   http://www.gnu.org/licenses/ GNU General Public License, Version 3
  */
 class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 	/**
@@ -33,8 +32,8 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 	 */
 	const PLUGIN_ID                       = 6;
 	const PLUGIN_VERSION                  = 0.1;
-	const PLUGIN_NAME                     = 'ServerRankingPlugin';
-	const PLUGIN_AUTHOR                   = 'kremsy';
+	const PLUGIN_NAME                     = 'Server Ranking Plugin';
+	const PLUGIN_AUTHOR                   = 'MCTeam';
 	const TABLE_RANK                      = 'mc_rank';
 	const RANKING_TYPE_RECORDS            = 'Records';
 	const RANKING_TYPE_RATIOS             = 'Ratios';
@@ -49,26 +48,53 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 	/**
 	 * Private Properties
 	 */
-	/** @var maniaControl $maniaControl * */
+	/** @var ManiaControl $maniaControl * */
 	private $maniaControl = null;
 	private $recordCount = 0;
 
 	/**
-	 * Prepares the Plugin
-	 *
-	 * @param ManiaControl $maniaControl
-	 * @return mixed
+	 * @see \ManiaControl\Plugins\Plugin::prepare()
 	 */
 	public static function prepare(ManiaControl $maniaControl) {
-		//Todo
 	}
 
 	/**
-	 * Load the plugin
-	 *
-	 * @param \ManiaControl\ManiaControl $maniaControl
-	 * @throws Exception
-	 * @return bool
+	 * @see \ManiaControl\Plugins\Plugin::getId()
+	 */
+	public static function getId() {
+		return self::PLUGIN_ID;
+	}
+
+	/**
+	 * @see \ManiaControl\Plugins\Plugin::getName()
+	 */
+	public static function getName() {
+		return self::PLUGIN_NAME;
+	}
+
+	/**
+	 * @see \ManiaControl\Plugins\Plugin::getVersion()
+	 */
+	public static function getVersion() {
+		return self::PLUGIN_VERSION;
+	}
+
+	/**
+	 * @see \ManiaControl\Plugins\Plugin::getAuthor()
+	 */
+	public static function getAuthor() {
+		return self::PLUGIN_AUTHOR;
+	}
+
+	/**
+	 * @see \ManiaControl\Plugins\Plugin::getDescription()
+	 */
+	public static function getDescription() {
+		return "ServerRanking Plugin, ServerRanking by an avg build from the records, per count of points, or by a multiplication from Kill/Death Ratio and Laser accuracy";
+	}
+
+	/**
+	 * @see \ManiaControl\Plugins\Plugin::load()
 	 */
 	public function load(ManiaControl $maniaControl) {
 		$this->maniaControl = $maniaControl;
@@ -93,10 +119,10 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 		}
 
 		//Check if the type is Correct
-		$type = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MIN_RANKING_TYPE);
+		$type = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MIN_RANKING_TYPE);
 		if ($type != self::RANKING_TYPE_RECORDS && $type != self::RANKING_TYPE_POINTS && $type != self::RANKING_TYPE_RATIOS) {
 			$error = 'Ranking Type is not correct, possible values(' . self::RANKING_TYPE_RATIOS . ', ' . self::RANKING_TYPE_POINTS . ', ' . self::RANKING_TYPE_POINTS . ')';
-			throw new Exception($error);
+			throw new \Exception($error);
 		}
 
 		//Register CallbackListeners
@@ -104,64 +130,11 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 		$this->maniaControl->callbackManager->registerCallbackListener(Callbacks::ENDMAP, $this, 'handleEndMap');
 
 		//Register CommandListener
-		$this->maniaControl->commandManager->registerCommandListener('rank', $this, 'command_showRank', false, 'Shows your current serverrank.');
-		$this->maniaControl->commandManager->registerCommandListener('nextrank', $this, 'command_nextRank', false, 'Shows the person in front of you in the serverranking.');
+		$this->maniaControl->commandManager->registerCommandListener('rank', $this, 'command_showRank', false, 'Shows your current ServerRank.');
+		$this->maniaControl->commandManager->registerCommandListener('nextrank', $this, 'command_nextRank', false, 'Shows the person in front of you in the ServerRanking.');
 		$this->maniaControl->commandManager->registerCommandListener(array('topranks', 'top100'), $this, 'command_topRanks', false, 'Shows an overview of the best-ranked 100 players.');
 
 		$this->resetRanks(); //TODO only update records count
-	}
-
-	/**
-	 * Unload the plugin and its resources
-	 */
-	public function unload() {
-		$this->maniaControl->callbackManager->unregisterCallbackListener($this);
-		$this->maniaControl->commandManager->unregisterCommandListener($this);
-	}
-
-	/**
-	 * Get plugin id
-	 *
-	 * @return int
-	 */
-	public static function getId() {
-		return self::PLUGIN_ID;
-	}
-
-	/**
-	 * Get Plugin Name
-	 *
-	 * @return string
-	 */
-	public static function getName() {
-		return self::PLUGIN_NAME;
-	}
-
-	/**
-	 * Get Plugin Version
-	 *
-	 * @return float
-	 */
-	public static function getVersion() {
-		return self::PLUGIN_VERSION;
-	}
-
-	/**
-	 * Get Plugin Author
-	 *
-	 * @return string
-	 */
-	public static function getAuthor() {
-		return self::PLUGIN_AUTHOR;
-	}
-
-	/**
-	 * Get Plugin Description
-	 *
-	 * @return string
-	 */
-	public static function getDescription() {
-		return "ServerRanking Plugin, ServerRanking by an avg build from the records, per count of points, or by a multiplication from Kill/Death Ratio and Laser accuracy";
 	}
 
 	/**
@@ -175,7 +148,7 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 		           `Avg` float NOT NULL default 0,
 		           KEY `PlayerIndex` (`PlayerIndex`),
 		           UNIQUE `Rank` (`Rank`)
-				) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Mania Control Serverranking';";
+				) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Mania Control ServerRanking';";
 		$mysqli->query($query);
 		if ($mysqli->error) {
 			trigger_error($mysqli->error, E_USER_ERROR);
@@ -190,18 +163,18 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 
 		// Erase old Average Data
 		$mysqli->query('TRUNCATE TABLE ' . self::TABLE_RANK);
-		$type = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MIN_RANKING_TYPE);
+		$type = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MIN_RANKING_TYPE);
 
-		switch($type) {
+		switch ($type) {
 			case self::RANKING_TYPE_RATIOS:
-				$minHits = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MIN_HITS_RATIO_RANKING);
+				$minHits = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MIN_HITS_RATIO_RANKING);
 
 				$hits            = $this->maniaControl->statisticManager->getStatsRanking(StatisticCollector::STAT_ON_HIT, -1, $minHits);
 				$killDeathRatios = $this->maniaControl->statisticManager->getStatsRanking(StatisticManager::SPECIAL_STAT_KD_RATIO);
 				$accuracies      = $this->maniaControl->statisticManager->getStatsRanking(StatisticManager::SPECIAL_STAT_LASER_ACC);
 
 				$ranks = array();
-				foreach($hits as $player => $hitCount) {
+				foreach ($hits as $player => $hitCount) {
 					if (!isset($killDeathRatios[$player]) || !isset($accuracies[$player])) {
 						continue;
 					}
@@ -214,39 +187,39 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 
 				break;
 			case self::RANKING_TYPE_POINTS:
-				$minHits = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MIN_HITS_POINTS_RANKING);
+				$minHits = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MIN_HITS_POINTS_RANKING);
 
 				$ranks = $this->maniaControl->statisticManager->getStatsRanking(StatisticCollector::STAT_ON_HIT, -1, $minHits);
 
 				break;
 			case self::RANKING_TYPE_RECORDS: //TODO verify workable status
-				if (!$this->maniaControl->pluginManager->isPluginActive('MCTeam\LocalRecordsPlugin')) {
+				/** @var LocalRecordsPlugin $localRecordsPlugin */
+				$localRecordsPlugin = $this->maniaControl->pluginManager->getPlugin(__NAMESPACE__ . '\LocalRecordsPlugin');
+				if (!$localRecordsPlugin) {
 					return;
 				}
 
-				$requiredRecords = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MIN_REQUIRED_RECORDS);
-				$maxRecords      = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MAX_STORED_RECORDS);
+				$requiredRecords = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MIN_REQUIRED_RECORDS);
+				$maxRecords      = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MAX_STORED_RECORDS);
 
 				$query = 'SELECT playerIndex, COUNT(*) AS Cnt
-  		          FROM ' . \MCTeam\LocalRecordsPlugin::TABLE_RECORDS . '
+  		          FROM ' . LocalRecordsPlugin::TABLE_RECORDS . '
   		          GROUP BY PlayerIndex
   		          HAVING Cnt >=' . $requiredRecords;
 
 				$result  = $mysqli->query($query);
 				$players = array();
-				while($row = $result->fetch_object()) {
+				while ($row = $result->fetch_object()) {
 					$players[$row->playerIndex] = array(0, 0); //sum, count
 				}
 				$result->free_result();
 
-				/** @var \MCTeam\LocalRecordsPlugin $localRecordsPlugin */
-				$localRecordsPlugin = $this->maniaControl->pluginManager->getPlugin('MCTeam\LocalRecordsPlugin');
-				$maps               = $this->maniaControl->mapManager->getMaps();
-				foreach($maps as $map) {
+				$maps = $this->maniaControl->mapManager->getMaps();
+				foreach ($maps as $map) {
 					$records = $localRecordsPlugin->getLocalRecords($map, $maxRecords);
 
 					$i = 1;
-					foreach($records as $record) {
+					foreach ($records as $record) {
 						if (isset($players[$record->playerIndex])) {
 							$players[$record->playerIndex][0] += $i;
 							$players[$record->playerIndex][1]++;
@@ -259,7 +232,7 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 
 				//compute each players new average score
 				$ranks = array();
-				foreach($players as $player => $val) {
+				foreach ($players as $player => $val) {
 					$sum = $val[0];
 					$cnt = $val[1];
 					// ranked maps sum + $maxRecs rank for all remaining maps
@@ -280,13 +253,19 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 		$query = "INSERT INTO " . self::TABLE_RANK . " VALUES ";
 		$i     = 1;
 
-		foreach($ranks as $player => $rankValue) {
+		foreach ($ranks as $player => $rankValue) {
 			$query .= '(' . $player . ',' . $i . ',' . $rankValue . '),';
 			$i++;
 		}
 		$query = substr($query, 0, strlen($query) - 1); // strip trailing ','
 
 		$mysqli->query($query);
+	}
+
+	/**
+	 * @see \ManiaControl\Plugins\Plugin::unload()
+	 */
+	public function unload() {
 	}
 
 	/**
@@ -300,27 +279,6 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 	}
 
 	/**
-	 * Shows Ranks on endMap
-	 *
-	 * @param Map $map
-	 */
-	public function handleEndMap(Map $map) {
-		$this->resetRanks();
-
-		foreach($this->maniaControl->playerManager->getPlayers() as $player) {
-			/** @var Player $player */
-			if ($player->isFakePlayer()) {
-				continue;
-			}
-			$this->showRank($player);
-			$this->showNextRank($player);
-		}
-
-		// Trigger callback
-		$this->maniaControl->callbackManager->triggerCallback(self::CB_RANK_BUILT);
-	}
-
-	/**
 	 * Shows the serverRank to a certain Player
 	 *
 	 * @param Player $player
@@ -328,11 +286,11 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 	public function showRank(Player $player) {
 		$rankObj = $this->getRank($player);
 
-		$type = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MIN_RANKING_TYPE);
+		$type = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MIN_RANKING_TYPE);
 
 		$message = '';
 		if ($rankObj) {
-			switch($type) {
+			switch ($type) {
 				case self::RANKING_TYPE_RATIOS:
 					$kd      = $this->maniaControl->statisticManager->getStatisticData(StatisticManager::SPECIAL_STAT_KD_RATIO, $player->index);
 					$acc     = $this->maniaControl->statisticManager->getStatisticData(StatisticManager::SPECIAL_STAT_LASER_ACC, $player->index);
@@ -345,18 +303,18 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 					$message = '$0f3Your Server rank is $<$ff3' . $rankObj->rank . '$> / $<$fff' . $this->recordCount . '$> Avg: $fff' . round($rankObj->avg, 2);
 			}
 		} else {
-			switch($type) {
+			switch ($type) {
 				case self::RANKING_TYPE_RATIOS:
-					$minHits = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MIN_HITS_RATIO_RANKING);
+					$minHits = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MIN_HITS_RATIO_RANKING);
 					$message = '$0f3 You must make $<$fff' . $minHits . '$> Hits on this server before receiving a rank...';
 					break;
 				case self::RANKING_TYPE_POINTS:
-					$minHits = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MIN_HITS_POINTS_RANKING);
-					$message = '$0f3 You must make $<$fff' . $minHits . '$> Hits on this server before receiving a rank...';
+					$minPoints = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MIN_HITS_POINTS_RANKING);
+					$message   = '$0f3 You must make $<$fff' . $minPoints . '$> Hits on this server before receiving a rank...';
 					break;
 				case self::RANKING_TYPE_RECORDS:
-					$minHits = $this->maniaControl->settingManager->getSetting($this, self::SETTING_MIN_REQUIRED_RECORDS);
-					$message = '$0f3 You need $<$fff' . $minHits . '$> Records on this server before receiving a rank...';
+					$minRecords = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_MIN_REQUIRED_RECORDS);
+					$message    = '$0f3 You need $<$fff' . $minRecords . '$> Records on this server before receiving a rank...';
 			}
 		}
 		$this->maniaControl->chat->sendChat($message, $player->login);
@@ -381,10 +339,34 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 			$result->free_result();
 			return null;
 		}
-		
+
 		$row = $result->fetch_array();
 		$result->free_result();
 		return Rank::fromArray($row);
+	}
+
+	/**
+	 * Shows which Player is next ranked to you
+	 *
+	 * @param Player $player
+	 * @return bool
+	 */
+	public function showNextRank(Player $player) {
+		$rankObject = $this->getRank($player);
+		if (!$rankObject) {
+			return false;
+		}
+
+		if ($rankObject->rank > 1) {
+			$nextRank   = $this->getNextRank($player);
+			$nextPlayer = $this->maniaControl->playerManager->getPlayerByIndex($nextRank->playerIndex);
+			$message    = '$0f3The next better ranked player is $fff' . $nextPlayer->nickname;
+		} else {
+			$message = '$0f3No better ranked player :-)';
+		}
+		$this->maniaControl->chat->sendChat($message, $player->login);
+
+		return true;
 	}
 
 	/**
@@ -409,6 +391,25 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 		}
 	}
 
+	/**
+	 * Shows Ranks on endMap
+	 *
+	 * @param Map $map
+	 */
+	public function handleEndMap(Map $map) {
+		$this->resetRanks();
+
+		foreach ($this->maniaControl->playerManager->getPlayers() as $player) {
+			if ($player->isFakePlayer()) {
+				continue;
+			}
+			$this->showRank($player);
+			$this->showNextRank($player);
+		}
+
+		// Trigger callback
+		$this->maniaControl->callbackManager->triggerCallback(self::CB_RANK_BUILT);
+	}
 
 	/**
 	 * Shows the current Server-Rank
@@ -433,30 +434,6 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 		}
 	}
 
-
-	/**
-	 * Shows which Player is next ranked to you
-	 *
-	 * @param Player $player
-	 */
-	public function showNextRank(Player $player) {
-		$rankObject = $this->getRank($player);
-
-		if ($rankObject) {
-			if ($rankObject->rank > 1) {
-				$nextRank   = $this->getNextRank($player);
-				$nextPlayer = $this->maniaControl->playerManager->getPlayerByIndex($nextRank->playerIndex);
-				$message    = '$0f3The next better ranked player is $fff' . $nextPlayer->nickname;
-			} else {
-				$message = '$0f3No better ranked player :-)';
-			}
-			$this->maniaControl->chat->sendChat($message, $player->login);
-
-			return true;
-		}
-		return false;
-	}
-
 	/**
 	 * Handles /topranks|top100 command
 	 *
@@ -468,17 +445,17 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 	}
 
 	/**
-	 * Provides a ManiaLink window with the top ranks to the player
+	 * Provide a ManiaLink window with the top ranks to the player
 	 *
 	 * @param Player $player
 	 */
 	private function showTopRanksList(Player $player) {
-		$query = "SELECT * FROM `".self::TABLE_RANK."` ORDER BY `Rank` ASC LIMIT 0, 100";
+		$query  = "SELECT * FROM `" . self::TABLE_RANK . "` ORDER BY `Rank` ASC LIMIT 0, 100";
 		$mysqli = $this->maniaControl->database->mysqli;
 		$result = $mysqli->query($query);
 		if ($mysqli->error) {
 			trigger_error($mysqli->error);
-			return null;
+			return;
 		}
 
 		$width  = $this->maniaControl->manialinkManager->styleManager->getListWidgetsWidth();
@@ -486,8 +463,8 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 
 		// create manialink
 		$maniaLink = new ManiaLink(ManialinkManager::MAIN_MLID);
-		$script = $maniaLink->getScript();
-		$paging = new Paging();
+		$script    = $maniaLink->getScript();
+		$paging    = new Paging();
 		$script->addFeature($paging);
 
 		// Main frame
@@ -509,21 +486,17 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 		$array = array('$oRank' => $x + 5, '$oNickname' => $x + 18, '$oAverage' => $x + 70);
 		$this->maniaControl->manialinkManager->labelLine($headFrame, $array);
 
-		$i          = 1;
-		$y          = $y - 10;
-		$pageFrames = array();
-		while($rankedPlayer = $result->fetch_object()) {
-			if (!isset($pageFrame)) {
+		$i         = 1;
+		$y         = $y - 10;
+		$pageFrame = null;
+
+		while ($rankedPlayer = $result->fetch_object()) {
+			if ($i % 15 === 1) {
 				$pageFrame = new Frame();
 				$frame->add($pageFrame);
-				if (!empty($pageFrames)) {
-					$pageFrame->setVisible(false);
-				}
-				array_push($pageFrames, $pageFrame);
 				$y = $height / 2 - 10;
 				$paging->addPage($pageFrame);
 			}
-
 
 			$playerFrame = new Frame();
 			$pageFrame->add($playerFrame);
@@ -538,14 +511,11 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 			}
 
 			$playerObject = $this->maniaControl->playerManager->getPlayerByIndex($rankedPlayer->PlayerIndex);
-			$array = array($rankedPlayer->Rank => $x + 5, $playerObject->nickname => $x + 18, (string)round($rankedPlayer->Avg, 2) => $x + 70);
+			$array        = array($rankedPlayer->Rank => $x + 5, $playerObject->nickname => $x + 18, (string)round($rankedPlayer->Avg, 2) => $x + 70);
 			$this->maniaControl->manialinkManager->labelLine($playerFrame, $array);
 
 			$y -= 4;
 			$i++;
-			if (($i - 1) % 15 == 0) {
-				unset($pageFrame);
-			}
 		}
 
 		// Render and display xml
@@ -556,6 +526,7 @@ class ServerRankingPlugin implements Plugin, CallbackListener, CommandListener {
 /**
  * Rank Structure
  */
+// TODO: extract class to own file
 class Rank extends AbstractStructure {
 	public $playerIndex;
 	public $rank;
