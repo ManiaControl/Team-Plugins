@@ -62,7 +62,7 @@ class AutoShutdownPlugin implements Plugin, CallbackListener, TimerListener {
 	 * @see \ManiaControl\Plugins\Plugin::getDescription()
 	 */
 	public static function getDescription() {
-		return "Plugin shutting down your Server when it's empty to restart it every few days.";
+		return "Plugin shutting down your Server when it's empty to restart it every few days. You need an automatic Restart Mechanism to use this Plugin.";
 	}
 
 	/**
@@ -107,13 +107,11 @@ class AutoShutdownPlugin implements Plugin, CallbackListener, TimerListener {
 
 	/**
 	 * Check if the Server should be shut down and perform it if necessary
-	 *
-	 * @return bool
 	 */
 	private function checkShutdown() {
 		// Check if server is empty
 		if (!$this->maniaControl->server->isEmpty()) {
-			return false;
+			return;
 		}
 
 		// Check if shutdown interval is reached
@@ -121,19 +119,13 @@ class AutoShutdownPlugin implements Plugin, CallbackListener, TimerListener {
 		$uptimeDays           = $networkStats->uptime / (24 * 3600);
 		$shutdownIntervalDays = $this->maniaControl->settingManager->getSettingValue($this, self::SETTING_SHUTDOWN_INTERVAL);
 		if ($shutdownIntervalDays <= 0 || $uptimeDays < $shutdownIntervalDays) {
-			return false;
+			return;
 		}
 
 		// Shut down server
-		return $this->performShutdown();
-	}
+		$this->maniaControl->client->stopServer();
 
-	/**
-	 * Shut down the Server
-	 *
-	 * @return bool
-	 */
-	private function performShutdown() {
-		return $this->maniaControl->client->stopServer();
+		// Quit ManiaControl
+		$this->maniaControl->quit("AutoShutdownPlugin: Shut down Server after {$shutdownIntervalDays} Days.");
 	}
 }
