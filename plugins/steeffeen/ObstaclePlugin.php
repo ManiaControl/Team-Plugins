@@ -12,9 +12,10 @@ use ManiaControl\Plugins\Plugin;
 use Maniaplanet\DedicatedServer\Xmlrpc\GameModeException;
 
 /**
- * ManiaControl Obstacle Plugin
+ * Obstacle Plugin
  *
- * @author steeffeen
+ * @author  steeffeen
+ * @version 0.2
  */
 class ObstaclePlugin implements CallbackListener, CommandListener, Plugin {
 	/*

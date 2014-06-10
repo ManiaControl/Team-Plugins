@@ -3,6 +3,8 @@
 .project
 .idea
 configs
-copycore.sh
 core
+logs
 ManiaControl.php
+ManiaControl.log
+copycore.sh

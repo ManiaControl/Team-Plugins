@@ -10,7 +10,8 @@ use ManiaControl\Plugins\Plugin;
 /**
  * Plugin for the TM Game Mode 'Endurance' by TGYoshi
  *
- * @author steeffeen
+ * @author  steeffeen
+ * @version 0.2
  */
 class EndurancePlugin implements CallbackListener, Plugin {
 	/*
