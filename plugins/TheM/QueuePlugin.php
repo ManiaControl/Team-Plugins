@@ -37,7 +37,7 @@ class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, Time
 	 * Constants
 	 */
 	const ID                 = 22;
-	const VERSION            = 0.12;
+	const VERSION            = 0.13;
 	const AUTHOR             = 'TheM';
 	const NAME               = 'Queue Plugin';
 	const ML_ID              = 'Queue.Widget';
