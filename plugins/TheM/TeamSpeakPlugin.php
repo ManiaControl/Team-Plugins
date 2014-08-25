@@ -172,7 +172,7 @@ class TeamSpeakPlugin implements CallbackListener, CommandListener, ManialinkPag
 			$host      = ($queryHost != '') ? $queryHost : $host;
 			$queryPort = $this->maniaControl->settingManager->getSettingValue($this, self::TEAMSPEAK_QUERYPORT);
 
-			$socket = fsockopen(@$host, $queryPort, $errno, $errstr, 2);
+			$socket = @fsockopen(@$host, $queryPort, $errno, $errstr, 2);
 			if ($socket) {
 				socket_set_timeout($socket, 2);
 				$is_ts3 = trim(fgets($socket)) == 'TS3';
