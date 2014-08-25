@@ -197,7 +197,7 @@ class TeamSpeakPlugin implements CallbackListener, CommandListener, ManialinkPag
 				$response .= $this->ts3_sendCommand($socket, 'channellist -topic -flags -voice -limits');
 				$response .= $this->ts3_sendCommand($socket, 'clientlist -uid -away -voice -groups');
 
-				fwrite($socket, "quit\n");
+				$this->ts3_sendCommand($socket, 'quit');
 				fclose($socket);
 
 				$lines = explode("error id=0 msg=ok\n\r", $response);
@@ -341,172 +341,176 @@ class TeamSpeakPlugin implements CallbackListener, CommandListener, ManialinkPag
 	 * @param mixed $player
 	 */
 	private function showWidget($player) {
-		$width        = $this->maniaControl->manialinkManager->getStyleManager()->getListWidgetsWidth();
-		$height       = $this->maniaControl->manialinkManager->getStyleManager()->getListWidgetsHeight();
-		$quadStyle    = $this->maniaControl->manialinkManager->getStyleManager()->getDefaultMainWindowStyle();
-		$quadSubstyle = $this->maniaControl->manialinkManager->getStyleManager()->getDefaultMainWindowSubStyle();
+		if(isset($this->serverData['channels']) && count($this->serverData['channels']) > 0) {
+			$width        = $this->maniaControl->manialinkManager->getStyleManager()->getListWidgetsWidth();
+			$height       = $this->maniaControl->manialinkManager->getStyleManager()->getListWidgetsHeight();
+			$quadStyle    = $this->maniaControl->manialinkManager->getStyleManager()->getDefaultMainWindowStyle();
+			$quadSubstyle = $this->maniaControl->manialinkManager->getStyleManager()->getDefaultMainWindowSubStyle();
 
-		$maniaLink = new ManiaLink(ManialinkManager::MAIN_MLID);
+			$maniaLink = new ManiaLink(ManialinkManager::MAIN_MLID);
 
-		// Main frame
-		$frame = new Frame();
-		$maniaLink->add($frame);
-		$frame->setSize($width, $height);
-		$frame->setPosition(0, 0, 10);
+			// Main frame
+			$frame = new Frame();
+			$maniaLink->add($frame);
+			$frame->setSize($width, $height);
+			$frame->setPosition(0, 0, 10);
 
-		// Background
-		$backgroundQuad = new Quad();
-		$frame->add($backgroundQuad);
-		$backgroundQuad->setSize($width, $height);
-		$backgroundQuad->setStyles($quadStyle, $quadSubstyle);
+			// Background
+			$backgroundQuad = new Quad();
+			$frame->add($backgroundQuad);
+			$backgroundQuad->setSize($width, $height);
+			$backgroundQuad->setStyles($quadStyle, $quadSubstyle);
 
-		// Close Quad (X)
-		$closeQuad = new Quad_Icons64x64_1();
-		$frame->add($closeQuad);
-		$closeQuad->setPosition($width * 0.483, $height * 0.467, 3);
-		$closeQuad->setSize(6, 6);
-		$closeQuad->setSubStyle(Quad_Icons64x64_1::SUBSTYLE_QuitRace);
-		$closeQuad->setAction(ManialinkManager::ACTION_CLOSEWIDGET);
+			// Close Quad (X)
+			$closeQuad = new Quad_Icons64x64_1();
+			$frame->add($closeQuad);
+			$closeQuad->setPosition($width * 0.483, $height * 0.467, 3);
+			$closeQuad->setSize(6, 6);
+			$closeQuad->setSubStyle(Quad_Icons64x64_1::SUBSTYLE_QuitRace);
+			$closeQuad->setAction(ManialinkManager::ACTION_CLOSEWIDGET);
 
-		$serverName = new Label_Text();
-		$frame->add($serverName);
-		$serverName->setY($height / 2 - 4);
-		$serverName->setX(-70);
-		$serverName->setStyle($serverName::STYLE_TextCardMedium);
-		$serverName->setHAlign('left');
-		$serverName->setTextSize(1);
-		$serverName->setText('$oServername:$o ' . $this->serverData['server']['virtualserver_name']);
-		$serverName->setTextColor('fff');
+			$serverName = new Label_Text();
+			$frame->add($serverName);
+			$serverName->setY($height / 2 - 4);
+			$serverName->setX(-70);
+			$serverName->setStyle($serverName::STYLE_TextCardMedium);
+			$serverName->setHAlign('left');
+			$serverName->setTextSize(1);
+			$serverName->setText('$oServername:$o ' . $this->serverData['server']['virtualserver_name']);
+			$serverName->setTextColor('fff');
 
-		$serverVersion = new Label_Text();
-		$frame->add($serverVersion);
-		$serverVersion->setY($height / 2 - 4);
-		$serverVersion->setX(2);
-		$serverVersion->setStyle($serverVersion::STYLE_TextCardMedium);
-		$serverVersion->setHAlign('left');
-		$serverVersion->setTextSize(1);
-		$serverVersion->setText('$oServerversion:$o ' . $this->serverData['server']['virtualserver_version']);
-		$serverVersion->setTextColor('fff');
+			$serverVersion = new Label_Text();
+			$frame->add($serverVersion);
+			$serverVersion->setY($height / 2 - 4);
+			$serverVersion->setX(2);
+			$serverVersion->setStyle($serverVersion::STYLE_TextCardMedium);
+			$serverVersion->setHAlign('left');
+			$serverVersion->setTextSize(1);
+			$serverVersion->setText('$oServerversion:$o ' . $this->serverData['server']['virtualserver_version']);
+			$serverVersion->setTextColor('fff');
 
-		$clients = new Label_Text();
-		$frame->add($clients);
-		$clients->setY($height / 2 - 7);
-		$clients->setX(-70);
-		$clients->setStyle($clients::STYLE_TextCardMedium);
-		$clients->setHAlign('left');
-		$clients->setTextSize(1);
-		$clients->setText('$oConnected clients:$o ' . $this->serverData['server']['virtualserver_clientsonline'] . '/' . $this->serverData['server']['virtualserver_maxclients']);
-		$clients->setTextColor('fff');
+			$clients = new Label_Text();
+			$frame->add($clients);
+			$clients->setY($height / 2 - 7);
+			$clients->setX(-70);
+			$clients->setStyle($clients::STYLE_TextCardMedium);
+			$clients->setHAlign('left');
+			$clients->setTextSize(1);
+			$clients->setText('$oConnected clients:$o ' . $this->serverData['server']['virtualserver_clientsonline'] . '/' . $this->serverData['server']['virtualserver_maxclients']);
+			$clients->setTextColor('fff');
 
-		$channels = new Label_Text();
-		$frame->add($channels);
-		$channels->setY($height / 2 - 7);
-		$channels->setX(2);
-		$channels->setStyle($channels::STYLE_TextCardMedium);
-		$channels->setHAlign('left');
-		$channels->setTextSize(1);
-		$noChannels = 0;
-		foreach ($this->serverData['channels'] as $channel) {
-			if ($channel['channel_maxclients'] == 0 || strpos($channel['channel_name'], 'spacer') > 0) {
-				continue;
+			$channels = new Label_Text();
+			$frame->add($channels);
+			$channels->setY($height / 2 - 7);
+			$channels->setX(2);
+			$channels->setStyle($channels::STYLE_TextCardMedium);
+			$channels->setHAlign('left');
+			$channels->setTextSize(1);
+			$noChannels = 0;
+			foreach ($this->serverData['channels'] as $channel) {
+				if ($channel['channel_maxclients'] == 0 || strpos($channel['channel_name'], 'spacer') > 0) {
+					continue;
+				}
+				$noChannels++;
 			}
-			$noChannels++;
-		}
-		$channels->setText('$oChannels:$o ' . $noChannels);
-		$channels->setTextColor('fff');
+			$channels->setText('$oChannels:$o ' . $noChannels);
+			$channels->setTextColor('fff');
 
-		// Join button
-		$joinButton = new Label_Button();
-		$frame->add($joinButton);
-		$joinButton->setWidth(150);
-		$joinButton->setY($height / 2 - 11.5);
-		$joinButton->setStyle($joinButton::STYLE_CardButtonSmallWide);
-		$joinButton->setText('Join TeamSpeak: ' . $this->maniaControl->settingManager->getSettingValue($this, self::TEAMSPEAK_SERVERHOST) . ':' . $this->maniaControl->settingManager->getSettingValue($this, self::TEAMSPEAK_SERVERPORT));
-		$joinButton->setTextColor('fff');
-		$url = 'ts3server://' . $this->maniaControl->settingManager->getSettingValue($this, self::TEAMSPEAK_SERVERHOST) . '/?port=' . $this->maniaControl->settingManager->getSettingValue($this, self::TEAMSPEAK_SERVERPORT) . '&nickname=' . rawurlencode(Formatter::stripCodes($player->nickname));
-		$joinButton->setUrl($url);
+			// Join button
+			$joinButton = new Label_Button();
+			$frame->add($joinButton);
+			$joinButton->setWidth(150);
+			$joinButton->setY($height / 2 - 11.5);
+			$joinButton->setStyle($joinButton::STYLE_CardButtonSmallWide);
+			$joinButton->setText('Join TeamSpeak: ' . $this->maniaControl->settingManager->getSettingValue($this, self::TEAMSPEAK_SERVERHOST) . ':' . $this->maniaControl->settingManager->getSettingValue($this, self::TEAMSPEAK_SERVERPORT));
+			$joinButton->setTextColor('fff');
+			$url = 'ts3server://' . $this->maniaControl->settingManager->getSettingValue($this, self::TEAMSPEAK_SERVERHOST) . '/?port=' . $this->maniaControl->settingManager->getSettingValue($this, self::TEAMSPEAK_SERVERPORT) . '&nickname=' . rawurlencode(Formatter::stripCodes($player->nickname));
+			$joinButton->setUrl($url);
 
-		$leftListQuad = new Quad();
-		$frame->add($leftListQuad);
-		$leftListQuad->setSize((($width / 2) - 5), ($height - 18));
-		$leftListQuad->setX(-36);
-		$leftListQuad->setY($height / 2 - 46);
-		$leftListQuad->setStyles($quadStyle, $quadSubstyle);
+			$leftListQuad = new Quad();
+			$frame->add($leftListQuad);
+			$leftListQuad->setSize((($width / 2) - 5), ($height - 18));
+			$leftListQuad->setX(-36);
+			$leftListQuad->setY($height / 2 - 46);
+			$leftListQuad->setStyles($quadStyle, $quadSubstyle);
 
-		$channels = array();
-		$users    = array();
-		$userId   = 0;
-		$index    = 0;
-		$startX   = -69.5;
-		foreach ($this->serverData['channels'] as $channel) {
-			if ($channel['channel_maxclients'] == 0 || strpos($channel['channel_name'], 'spacer') > 0) {
-				continue;
-			}
-			$channelLabel = new Label_Text();
-			$frame->add($channelLabel);
-			$y = 17.5 + ($index * 2.5);
-			$channelLabel->setY($height / 2 - $y);
-			$x = $startX;
-			if ($channel['pid'] != 0) {
-				$x = $startX + 5;
-			}
-			$channelLabel->setX($x);
-			$channelLabel->setStyle($channelLabel::STYLE_TextCardMedium);
-			$channelLabel->setHAlign('left');
-			$channelLabel->setTextSize(1);
-			$channelLabel->setScale(0.9);
-			if ($channel['channel_flag_default'] == 1) {
-				$channel['total_clients'] = ($channel['total_clients'] - 1);
-			} // remove query client
-			$channelLabel->setText('$o' . $channel['channel_name'] . '$o (' . $channel['total_clients'] . ')');
-			$channelLabel->setTextColor('fff');
+			$channels = array();
+			$users    = array();
+			$userId   = 0;
+			$index    = 0;
+			$startX   = -69.5;
+			foreach ($this->serverData['channels'] as $channel) {
+				if ($channel['channel_maxclients'] == 0 || strpos($channel['channel_name'], 'spacer') > 0) {
+					continue;
+				}
+				$channelLabel = new Label_Text();
+				$frame->add($channelLabel);
+				$y = 17.5 + ($index * 2.5);
+				$channelLabel->setY($height / 2 - $y);
+				$x = $startX;
+				if ($channel['pid'] != 0) {
+					$x = $startX + 5;
+				}
+				$channelLabel->setX($x);
+				$channelLabel->setStyle($channelLabel::STYLE_TextCardMedium);
+				$channelLabel->setHAlign('left');
+				$channelLabel->setTextSize(1);
+				$channelLabel->setScale(0.9);
+				if ($channel['channel_flag_default'] == 1) {
+					$channel['total_clients'] = ($channel['total_clients'] - 1);
+				} // remove query client
+				$channelLabel->setText('$o' . $channel['channel_name'] . '$o (' . $channel['total_clients'] . ')');
+				$channelLabel->setTextColor('fff');
 
-			$channels[$index] = $channelLabel;
+				$channels[$index] = $channelLabel;
 
-			$index++;
-			foreach ($this->serverData['users'] as $user) {
-				if ($user['cid'] == $channel['cid']) {
-					$userLabel = new Label_Text();
-					$frame->add($userLabel);
-					$y = 17.5 + ($index * 2.5);
-					$userLabel->setY($height / 2 - $y);
-					if ($channel['pid'] != 0) {
-						$x = $startX + 7;
-					} else {
-						$x = $startX + 2;
+				$index++;
+				foreach ($this->serverData['users'] as $user) {
+					if ($user['cid'] == $channel['cid']) {
+						$userLabel = new Label_Text();
+						$frame->add($userLabel);
+						$y = 17.5 + ($index * 2.5);
+						$userLabel->setY($height / 2 - $y);
+						if ($channel['pid'] != 0) {
+							$x = $startX + 7;
+						} else {
+							$x = $startX + 2;
+						}
+						$userLabel->setX($x);
+						$userLabel->setStyle($userLabel::STYLE_TextCardMedium);
+						$userLabel->setHAlign('left');
+						$userLabel->setTextSize(1);
+						$userLabel->setScale(0.9);
+						$userLabel->setText($user['client_nickname']);
+						$userLabel->setTextColor('fff');
+						$users[$userId] = $userLabel;
+
+						$userId++;
+						$index++;
+
+						if ($index > 22) {
+							$index  = 0;
+							$startX = 2.5;
+						}
 					}
-					$userLabel->setX($x);
-					$userLabel->setStyle($userLabel::STYLE_TextCardMedium);
-					$userLabel->setHAlign('left');
-					$userLabel->setTextSize(1);
-					$userLabel->setScale(0.9);
-					$userLabel->setText($user['client_nickname']);
-					$userLabel->setTextColor('fff');
-					$users[$userId] = $userLabel;
+				}
 
-					$userId++;
-					$index++;
-
-					if ($index > 22) {
-						$index  = 0;
-						$startX = 2.5;
-					}
+				if ($index > 22) {
+					$index  = 0;
+					$startX = 2.5;
 				}
 			}
 
-			if ($index > 22) {
-				$index  = 0;
-				$startX = 2.5;
-			}
+			$rightlistQuad = new Quad();
+			$frame->add($rightlistQuad);
+			$rightlistQuad->setSize((($width / 2) - 5), ($height - 18));
+			$rightlistQuad->setX(36);
+			$rightlistQuad->setY($height / 2 - 46);
+			$rightlistQuad->setStyles($quadStyle, $quadSubstyle);
+
+			$this->maniaControl->manialinkManager->displayWidget($maniaLink, $player, 'TSViewer');
+		} else {
+			$this->maniaControl->chat->sendError('No TeamSpeak information available!', $player->login);
 		}
-
-		$rightlistQuad = new Quad();
-		$frame->add($rightlistQuad);
-		$rightlistQuad->setSize((($width / 2) - 5), ($height - 18));
-		$rightlistQuad->setX(36);
-		$rightlistQuad->setY($height / 2 - 46);
-		$rightlistQuad->setStyles($quadStyle, $quadSubstyle);
-
-		$this->maniaControl->manialinkManager->displayWidget($maniaLink, $player, 'TSViewer');
 	}
 }
