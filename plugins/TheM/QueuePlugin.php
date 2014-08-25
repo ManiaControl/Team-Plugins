@@ -15,9 +15,13 @@ use ManiaControl\Callbacks\TimerListener;
 use ManiaControl\ManiaControl;
 use ManiaControl\Manialinks\ManialinkPageAnswerListener;
 use ManiaControl\Players\Player;
+use ManiaControl\Players\PlayerActions;
 use ManiaControl\Players\PlayerManager;
 use ManiaControl\Plugins\Plugin;
 use Maniaplanet\DedicatedServer\Xmlrpc\Exception;
+use Maniaplanet\DedicatedServer\Xmlrpc\GameModeException;
+use Maniaplanet\DedicatedServer\Xmlrpc\ServerOptionsException;
+use Maniaplanet\DedicatedServer\Xmlrpc\UnknownPlayerException;
 
 /**
  * Queue plugin
@@ -29,7 +33,7 @@ use Maniaplanet\DedicatedServer\Xmlrpc\Exception;
 // TODO: idlekick function (?)
 
 class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, TimerListener, Plugin {
-	/**
+	/*
 	 * Constants
 	 */
 	const ID                 = 22;
@@ -46,7 +50,7 @@ class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, Time
 	const QUEUE_ACTIVE_ON_PASS = 'Activate queue when there is a play password';
 	const QUEUE_CHATMESSAGES   = 'Activate chat messages on queue join/leave/move to play';
 
-	/**
+	/*
 	 * Private properties
 	 */
 	/** @var ManiaControl $maniaControl */
@@ -140,8 +144,8 @@ class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, Time
 	private function showJoinQueueWidget(Player $player) {
 		$maniaLink = new ManiaLink(self::ML_ID);
 
-		$quadStyle    = $this->maniaControl->manialinkManager->styleManager->getDefaultMainWindowStyle();
-		$quadSubstyle = $this->maniaControl->manialinkManager->styleManager->getDefaultMainWindowSubStyle();
+		$quadStyle    = $this->maniaControl->manialinkManager->getStyleManager()->getDefaultMainWindowStyle();
+		$quadSubstyle = $this->maniaControl->manialinkManager->getStyleManager()->getDefaultMainWindowSubStyle();
 		$maxQueue     = $this->maniaControl->settingManager->getSettingValue($this, self::QUEUE_MAX);
 
 		// Main frame
@@ -330,13 +334,13 @@ class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, Time
 	 * @param Player $player
 	 */
 	private function forcePlayerToPlay(Player $player) {
-		if ($this->maniaControl->client->getServerPassword() != false && $this->maniaControl->settingManager->getSettingValue($this, self::QUEUE_ACTIVE_ON_PASS) == false) {
+		if ($this->maniaControl->getClient()->getServerPassword() != false && $this->maniaControl->settingManager->getSettingValue($this, self::QUEUE_ACTIVE_ON_PASS) == false) {
 			return;
 		}
 
-		if ($this->maxPlayers > (count($this->maniaControl->playerManager->players) - count($this->spectators))) {
+		if ($this->maxPlayers > $this->maniaControl->playerManager->getPlayerCount(true)) {
 			try {
-				$this->maniaControl->client->forceSpectator($player->login, 2);
+				$this->maniaControl->getClient()->forceSpectator($player->login, PlayerActions::SPECTATOR_PLAYER);
 			} catch (Exception $e) {
 				// TODO: only possible valid exception should be "wrong login" - throw others (like connection error)
 				$this->maniaControl->chat->sendError("Error while leaving the Queue", $player->login);
@@ -344,14 +348,23 @@ class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, Time
 			}
 
 			try {
-				$this->maniaControl->client->forceSpectator($player->login, 0);
+				$this->maniaControl->getClient()->forceSpectator($player->login, PlayerActions::SPECTATOR_USER_SELECTABLE);
 			} catch (Exception $e) {
 				// TODO: only possible valid exception should be "wrong login" - throw others (like connection error)
 			}
 
 			$teams = array();
+
+			//Initialize at least two teams with 0 players
+			$teams[0] = 0;
+			$teams[1] = 0;
+
 			/** @var  Player $playerObj */
-			foreach ($this->maniaControl->playerManager->players as $playerObj) {
+			foreach ($this->maniaControl->playerManager->getPlayers() as $playerObj) {
+				if ($playerObj->isSpectator) {
+					continue;
+				}
+
 				if (!isset($teams[$playerObj->teamId])) {
 					$teams[$playerObj->teamId] = 1;
 				} else {
@@ -368,12 +381,16 @@ class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, Time
 				}
 			}
 
-			try {
-				if ($smallestTeam != -1) {
-					$this->maniaControl->client->forcePlayerTeam($player->login, $smallestTeam);
+			if ($smallestTeam !== null) {
+				try {
+					$this->maniaControl->getClient()->forcePlayerTeam($player->login, $smallestTeam);
+				} catch (GameModeException $e) {
+					try {
+						$this->maniaControl->getClient()->forceSpectator($player->login, PlayerActions::SPECTATOR_PLAYER);
+						$this->maniaControl->getClient()->forceSpectator($player->login, PlayerActions::SPECTATOR_USER_SELECTABLE);
+					} catch (ServerOptionsException $e) {
+					}
 				}
-			} catch (Exception $e) {
-				// TODO: only possible valid exceptions should be "wrong login" or "not in team mode" - throw others (like connection error)
 			}
 
 			if (isset($this->spectators[$player->login])) {
@@ -394,8 +411,8 @@ class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, Time
 	private function showPlayWidget(Player $player) {
 		$maniaLink = new ManiaLink(self::ML_ID);
 
-		$quadStyle    = $this->maniaControl->manialinkManager->styleManager->getDefaultMainWindowStyle();
-		$quadSubstyle = $this->maniaControl->manialinkManager->styleManager->getDefaultMainWindowSubStyle();
+		$quadStyle    = $this->maniaControl->manialinkManager->getStyleManager()->getDefaultMainWindowStyle();
+		$quadSubstyle = $this->maniaControl->manialinkManager->getStyleManager()->getDefaultMainWindowSubStyle();
 
 		// Main frame
 		$frame = new Frame();
@@ -458,7 +475,14 @@ class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, Time
 		if (!is_null($player)) {
 			if ($player->isSpectator) {
 				if (!isset($this->spectators[$player->login])) {
-					$this->maniaControl->client->forceSpectator($player->login, 1);
+					try {
+						$this->maniaControl->getClient()->forceSpectator($player->login, 1);
+					} catch (UnknownPlayerException $e) {
+						//Player is not on the server anymore
+						unset($this->spectators[$player->login]);
+						return;
+					}
+
 					$this->spectators[$player->login] = $player->login;
 					$this->showJoinQueueWidget($player);
 					$this->showQueueWidgetSpectators();
@@ -500,7 +524,7 @@ class QueuePlugin implements CallbackListener, ManialinkPageAnswerListener, Time
 			return;
 		}
 
-		if ($this->maxPlayers > (count($this->maniaControl->playerManager->players) - count($this->spectators))) {
+		if ($this->maxPlayers > ($this->maniaControl->playerManager->getPlayerCount() - count($this->spectators))) {
 			$this->moveFirstPlayerToPlay();
 			$this->showQueueWidgetSpectators();
 		}
