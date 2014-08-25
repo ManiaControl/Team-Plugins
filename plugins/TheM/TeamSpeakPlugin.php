@@ -30,7 +30,7 @@ class TeamSpeakPlugin implements CallbackListener, CommandListener, ManialinkPag
 	 * Constants
 	 */
 	const ID      = 23;
-	const VERSION = 0.11;
+	const VERSION = 0.13;
 	const NAME    = 'TeamSpeak Plugin';
 	const AUTHOR  = 'TheM';
 
