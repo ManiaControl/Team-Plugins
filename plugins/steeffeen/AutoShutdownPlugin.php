@@ -12,7 +12,7 @@ use ManiaControl\Plugins\Plugin;
  * Auto Shutdown Plugin
  *
  * @author  steeffeen
- * @version 0.1
+ * @version 0.2
  */
 class AutoShutdownPlugin implements Plugin, CallbackListener, TimerListener {
 	/*
